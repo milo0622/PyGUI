@@ -1,13 +1,15 @@
+import os
 import sys
 sys.path.insert(0, "/opt/pygui/")
 from lib.initialization import *
 from lib.server import *
-from lib.uiapi import *
+from lib.baseuiapi import *
 import pygame
 from pathlib import Path
 import platform
-
-args = sys.argv[1:]
+import socket
+import json
+from lib.guiSDK import * 
 
 class PyGUI:
     def __init__(self):
@@ -16,14 +18,8 @@ class PyGUI:
         self.screen, self.w, self.h = initialization.initPyGame()
         self.curX, self.curY = initialization.initMouse()
 
-        if len(args) >= 1:
-            if args[0] == "debug":
-                self.infoPath = "../../etc/os-release"
-            else:
-                self.infoPath = "/etc/os-release"
-
     def main(self):
-        self.sysServer = SysServer(pygame, self.screen, self.w, self.h)
+        self.sysServer = SysServer(pygame, self.screen, self.w, self.h, serverAddr="/tmp/pygui.sock")
         self.mainloop()
 
     def mainloop(self, fps=60):
@@ -38,7 +34,42 @@ class PyGUI:
                 clock.tick(fps)
 
                 self.sysServer.drawWallpaper()
-                
+                incomingMsg = self.sysServer.acceptMessage()
+                if incomingMsg:
+                    print(f"IPC Received: {incomingMsg}")
+                    try:
+                        parsed = self.sysServer.decodeMessage(incomingMsg)
+                        if parsed:
+                            useSelf = parsed.get("useSelf", False)
+                            targFunc = parsed.get("function", "")
+                            run = globals().get(targFunc, "")
+                            if useSelf:
+                                targClass = getattr(self, parsed.get("useClass"), None)
+                                if targClass:
+                                    run = getattr(targClass, targFunc, None)
+                            if callable(run):
+                                try:
+                                    result = run(*parsed.get(args, []), **parsed.get(kwargs, {}))
+                                    replyPayload = {
+                                        "result": result,
+                                        "status": "Success"
+                                    }
+                                except Exception as e:
+                                    replyPayload = {
+                                        "result":e,
+                                        "status":"Failure"
+                                    }
+                                reply = json.dumps(replyPayload)
+
+                            else:
+                                replyPayload = {
+                                    "result": "Function not found",
+                                    "status":"Failure"
+                                }
+                                reply = json.dumps(replyPayload)
+                            self.sysServer.sendMessage(reply)
+                    except Exception as e:
+                        print(f"Error: {e}")
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         running = False
@@ -64,14 +95,15 @@ class PyGUI:
                         
                 for window in self.sysServer.windows.keys():
                     self.sysServer.windows[window].drawWindow()
-            
+
                 self.sysServer.bootFade(0.5)
                 pygame.display.flip()
             except (KeyboardInterrupt, EOFError):
                 break
     
     def autostart(self):
-        pass
-    
+        app = App(title="PythOS", x=None, y=None, w=300, h=400)
+        app.initWindow()
+        
 if __name__ == "__main__":
     gui = PyGUI().main()

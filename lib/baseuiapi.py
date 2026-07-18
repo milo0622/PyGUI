@@ -30,7 +30,6 @@ class WindowAPI:
 		self.xOffset = 0
 		self.yOffset = 0
 
-		self.window = None
 		self.titleBar = None
 
 		self.titleFS = 12 if tbHeight > 0 else 0
@@ -52,8 +51,9 @@ class WindowAPI:
 		self.content = pygame.Surface((self.w - 2, self.h - (6 if self.tbHeight > 0 else 0) - self.tbHeight))
 		self.content.fill(self.bgColor)
 
-	def drawWindow(self):
 		self.window = pygame.Surface((self.w, self.h))
+
+	def drawWindow(self):
 		self.window.fill(self.bgColor)
 
 		self.titleBar = pygame.Rect(2, 2, self.tbWidth, self.tbHeight)
