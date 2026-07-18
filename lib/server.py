@@ -69,7 +69,7 @@ class SysServer:
                 return None
         
         try:
-            data = self.clientSocket.recv(4096)
+            data = self.clientSocket.recv(1024)
             if not data:
                 self.clientSocket.close()
                 self.clientSocket = None
@@ -88,8 +88,7 @@ class SysServer:
         if self.clientSocket is None:
             return None
         try:
-            reply = json.dumps(reply)
-            self.compositor.sendall(reply.encode("utf-8"))
+            self.clientSocket.sendall(reply.encode("utf-8"))
             return None
         except BlockingIOError:
             return None
@@ -98,21 +97,22 @@ class SysServer:
 
     def decodeMessage(self, message:str):
         try:
-            message = json.loads(message.decode("utf-8"))
-            return message
+            return json.loads(message)
         except json.JSONDecodeError:
             return None
-    def initWindow(self, title="window", x=None, y=None, w=400, height=300, tbHeight=25, tbColor=[0,0,128],  close=True, fontPath="/opt/pygui/assets/defaultFont.ttf"):
+    def initWindow(self, title="window", x=None, y=None, w=400, h=300, tbHeight=25, tbColor=[0,0,128],  close=True, fontPath="/opt/pygui/assets/defaultFont.ttf"):
+        print("init window")
         currentID = self.nextID
         window = WindowAPI(self, self.tS, x, y, w, h, title, close, fontPath, tbHeight, tbColor)
+        window.ID = currentID
         self.windows[currentID] = window
         self.nextID += 1
 
-        return window, currentID
+        return currentID
     
     def destroyWindow(self, windowID):
-        targetWindow = self.windows.get(windowID, None)
-        if targetWindow is not None:
-            self.windows.pop(targetWindow)
+        print(f"{type(windowID)}, {windowID}")
+        if windowID in self.windows:
+            self.windows.pop(windowID)
             return windowID, "Success"
         return windowID, "Failed"

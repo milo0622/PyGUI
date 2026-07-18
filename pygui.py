@@ -10,6 +10,7 @@ import platform
 import socket
 import json
 from lib.guiSDK import * 
+import traceback
 
 class PyGUI:
     def __init__(self):
@@ -20,13 +21,14 @@ class PyGUI:
 
     def main(self):
         self.sysServer = SysServer(pygame, self.screen, self.w, self.h, serverAddr="/tmp/pygui.sock")
+                
+        import threading
+        threading.Thread(target=self.autostart, daemon=True).start()
         self.mainloop()
 
     def mainloop(self, fps=60):
         clock = pygame.time.Clock()
         running = True
-
-        self.autostart() # <-- Ts is for automatically running programs when pygui starts (obviously)
 
         while running:
             try:
@@ -34,42 +36,8 @@ class PyGUI:
                 clock.tick(fps)
 
                 self.sysServer.drawWallpaper()
-                incomingMsg = self.sysServer.acceptMessage()
-                if incomingMsg:
-                    print(f"IPC Received: {incomingMsg}")
-                    try:
-                        parsed = self.sysServer.decodeMessage(incomingMsg)
-                        if parsed:
-                            useSelf = parsed.get("useSelf", False)
-                            targFunc = parsed.get("function", "")
-                            run = globals().get(targFunc, "")
-                            if useSelf:
-                                targClass = getattr(self, parsed.get("useClass"), None)
-                                if targClass:
-                                    run = getattr(targClass, targFunc, None)
-                            if callable(run):
-                                try:
-                                    result = run(*parsed.get(args, []), **parsed.get(kwargs, {}))
-                                    replyPayload = {
-                                        "result": result,
-                                        "status": "Success"
-                                    }
-                                except Exception as e:
-                                    replyPayload = {
-                                        "result":e,
-                                        "status":"Failure"
-                                    }
-                                reply = json.dumps(replyPayload)
 
-                            else:
-                                replyPayload = {
-                                    "result": "Function not found",
-                                    "status":"Failure"
-                                }
-                                reply = json.dumps(replyPayload)
-                            self.sysServer.sendMessage(reply)
-                    except Exception as e:
-                        print(f"Error: {e}")
+                self.recv()
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
                         running = False
@@ -104,6 +72,56 @@ class PyGUI:
     def autostart(self):
         app = App(title="PythOS", x=None, y=None, w=300, h=400)
         app.initWindow()
+    
+    def recv(self):
+        incomingMsg = self.sysServer.acceptMessage()
+        if incomingMsg:
+            try:
+                parsed = self.sysServer.decodeMessage(incomingMsg)
+                print(parsed)
+                if parsed:
+                    useSelf = parsed.get("useSelf", False)
+                    targFunc = parsed.get("function", "")
+                    run = globals().get(targFunc, "")
+                    if useSelf:
+                        targClass = getattr(self, parsed.get("useClass"), None)
+                        if targClass:
+                            run = getattr(targClass, targFunc, None)
+                    if callable(run):
+                        try:
+                            result = run(*parsed.get("args", []), **parsed.get("kwargs", {}))
+                            replyPayload = {
+                                "result": result,
+                                "status": "Success"
+                            }
+                        except Exception as e:
+                            print(e)
+                            replyPayload = {
+                                "result": str(e),
+                                "status":"Failure"
+                            }
+                        reply = json.dumps(replyPayload)
+
+                    else:
+                        print("Function not found")
+                        replyPayload = {
+                            "result": "Function not found",
+                            "status":"Failure"
+                        }
+                        reply = json.dumps(replyPayload)
+                    self.sysServer.sendMessage(reply)
+            except (ConnectionResetError, BrokenPipeError, socket.error) as e:
+                print(f"Client disconnected: {e}")
+
+                return None
+            except Exception as e:
+                print(f"Error: {e}")
+                replyPayload = {
+                    "result":str(e),
+                    "status": "Failure"
+                }
+                reply = json.dumps(replyPayload)
+                self.sysServer.sendMessage(reply)
         
 if __name__ == "__main__":
     gui = PyGUI().main()

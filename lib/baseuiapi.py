@@ -4,6 +4,7 @@ import sys
 sys.path.insert(0,"/opt/pygui")
 from lib.server import *
 from pathlib import Path
+from lib.guiSDK import *
 
 class WindowAPI:
 	def __init__(self, sysServer:SysServer, targetSurface:pygame.Surface, x, y, width=400, height=300, title="window", close=True, fontPath="/opt/pygui/assets/defaultFont.ttf", tbHeight=25, tbColor=[0,0,128]):
@@ -74,8 +75,8 @@ class WindowAPI:
 		return self.window, self.titleBar, self.titleObject, self.content
 	
 	def closeWindow(self):
+		self.sysServer.destroyWindow(self.ID)
 		print(f"Window closed: {self.title}")
-		self.sysServer.windows.pop(self.ID)
 
 	def handleMouseDown(self, mousePos:tuple):
 		print("handle: mouse down")
