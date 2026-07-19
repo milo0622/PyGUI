@@ -55,7 +55,8 @@ class SysServer:
                 self.tempFade = 0
                 del self.fadeOverlay
     
-    def obtainScreenSize(self):
+    @staticmethod
+    def obtainScreenSize():
         displayInfo = self.pygame.display.Info()
         self.w, self.h = displayInfo.current_w, displayInfo.current_h
         return self.w, self.h
@@ -116,3 +117,20 @@ class SysServer:
             self.windows.pop(windowID)
             return windowID, "Success"
         return windowID, "Failed"
+
+class Taskbar:
+    def __init__(self, targetSurface:pygame.Surface, color=[212, 208, 200], height=30):
+        self.tS = targetSurface
+        self.bgColor = color
+        self.height = height
+
+        self.screenw, _ = SysServer.obtainScreenSize()
+        self.h = height if height else 30
+
+        self.tbSurface = pygame.Surface((self.screenw, self.h))
+        self.tbSurface.fill(self.bgColor)
+
+        self.buttons = []
+
+    def drawTaskbar(self):
+        
