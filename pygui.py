@@ -10,7 +10,7 @@ import platform
 import socket
 import json
 from lib.guiSDK import * 
-import traceback
+import subprocess as sp
 
 class PyGUI:
     def __init__(self):
@@ -36,7 +36,8 @@ class PyGUI:
                 clock.tick(fps)
 
                 self.sysServer.drawWallpaper()
-
+                self.sysServer.taskbar.drawTaskbar()
+                
                 self.recv()
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
@@ -70,8 +71,7 @@ class PyGUI:
                 break
     
     def autostart(self):
-        app = App(title="PythOS", x=None, y=None, w=300, h=400)
-        app.initWindow()
+        sp.run(["/usr/bin/python3", "/opt/pygui/apps/About PythOS.py"])
     
     def recv(self):
         incomingMsg = self.sysServer.acceptMessage()
@@ -112,7 +112,6 @@ class PyGUI:
                     self.sysServer.sendMessage(reply)
             except (ConnectionResetError, BrokenPipeError, socket.error) as e:
                 print(f"Client disconnected: {e}")
-
                 return None
             except Exception as e:
                 print(f"Error: {e}")

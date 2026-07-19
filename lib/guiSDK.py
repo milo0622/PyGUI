@@ -14,9 +14,7 @@ class App:
         self.w, self.h = w, h
         self.title = title
 
-        self.displayInfo = pygame.display.Info()
-        self.sw = self.displayInfo.current_w
-        self.sh = self.displayInfo.current_h
+        self.sw, self.sh = self.obtainScreenSize()
 
         self.x = x if x is not None else (self.sw - self.w) // 2
         self.y = y if y is not None else (self.sh - self.h) // 2
@@ -28,11 +26,19 @@ class App:
 
         self.ID:int = None
 
+        self.window = None
+
+    def obtainScreenSize(self) -> tuple | None:
+        result, status = self.sendRequest(action="obtainScreenSize", useSelf=False, useClass=None)
+        if status == "Success":
+            return result.get("result")
+        return None
+
     def initWindow(self):
         result, status = self.sendRequest(action="initWindow", useSelf=True, useClass="sysServer", title=self.title, x=self.x, y=self.y, w=self.w, h=self.h, tbHeight=self.tbHeight, close=self.close, tbColor=self.tbColor)
         if status == "Success":
             if result.get("result", None) is not None:
-                if isinstance(result.get("result", None), tuple):
+                if isinstance(result.get("result", None), int):
                     self.ID = result.get("result")
                     return self.ID
                 else:
@@ -46,15 +52,16 @@ class App:
         if windowID is None:
             windowID = self.ID
 
-        result, status = self.sendRequest(action="destroyWindow", useSelf=True, useClass="sysServer", windowID=windowID)    
+        self.sendRequest(action="destroyWindow", useSelf=True, useClass="sysServer", windowID=windowID)    
 
-    def Text(self, text, x=0, y=0, fontSize=20, fontPath="/opt/pygui/assets/defaultFont.ttf"):
-        
+    def Text(self, text, x=0, y=0, fontSize=20, fontPath="/opt/pygui/assets/defaultFont.ttf", fontColor=[0,0,0]):
+        print(self.ID)
         if not fontPath:
             fontPath = "/opt/pygui/assets/defaultFont.ttf"
+        result = self.sendRequest("UIText", useSelf=True, useClass="sysServer", text=text, x=x, y=y, fontSize=fontSize, fontPath=fontPath, fontColor=fontColor, windowID=self.ID)
+        return result
 
-    def sendRequest(self, action:str, useSelf=True, useClass="sysServer", *args, **kwargs):
-        
+    def sendRequest(self, action:str | list, useSelf=True, useClass:str | None="sysServer", *args, **kwargs):
         payload = {
             "function":action,
             "useSelf":useSelf,

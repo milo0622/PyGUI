@@ -4,7 +4,6 @@ import sys
 sys.path.insert(0,"/opt/pygui")
 from lib.server import *
 from pathlib import Path
-from lib.guiSDK import *
 
 class WindowAPI:
 	def __init__(self, sysServer:SysServer, targetSurface:pygame.Surface, x, y, width=400, height=300, title="window", close=True, fontPath="/opt/pygui/assets/defaultFont.ttf", tbHeight=25, tbColor=[0,0,128]):
@@ -60,8 +59,7 @@ class WindowAPI:
 		self.titleBar = pygame.Rect(2, 2, self.tbWidth, self.tbHeight)
 		pygame.draw.rect(self.window, self.tbColor, self.titleBar)
 		
-		self.titleObject = UIText(self.window, self.fontPath, self.titleFS, fontColor=[255, 255, 255])
-		self.titleObject.renderText(self.title)
+		self.titleObject = UIText(self.title, self.window, self.fontPath, self.titleFS, fontColor=[255, 255, 255], renderAllAtOnce=False)
 		titleY = (self.tbHeight - int(self.titleObject.height)) // 2 + self.tbStartY
 		self.titleObject.blitText(titleY, titleY)
 
@@ -230,24 +228,37 @@ class UIButton:
 			self.callback(*args)
 
 class UIText:
-	def __init__(self, targetSurface:pygame.Surface, fontPath:str="/opt/pygui/assets/defaultFont.ttf", fontSize:int=12, fontColor=pygame.Color):
+	def __init__(self, text, targetSurface:pygame.Surface, x=None, y=None, fontPath:str="/opt/pygui/assets/defaultFont.ttf", fontSize:int=12, fontColor=pygame.Color, renderAllAtOnce=True):
 		self.font = pygame.font.Font(fontPath, fontSize)
 		self.fontSize = fontSize
 		self.tS = targetSurface
 		self.fontColor = fontColor
 
-	def renderText(self, text):
+		self.x = x
+		self.y = y
+
 		self.rendered = self.font.render(text, True, self.fontColor)
 		self.height = self.rendered.get_height()
 		self.width = self.rendered.get_width()
+
+		self.rendered = self.font.render(text, True, self.fontColor)
+		self.height = self.rendered.get_height()
+		self.width = self.rendered.get_width()
+		if renderAllAtOnce:
+			self.blitText()
 		
-	def blitText(self, x, y):
-		self.x = x
-		self.y = y 
+	def blitText(self, x=None, y=None):
+		"""x or y coordinates are optional if already defined when initializing UIText object"""
+		self.x = x if x else self.x
+		self.y = y if y else self.y
+		if x is None or y is None:
+			print("Coordinates required")
 		if hasattr(self, 'rendered') and self.rendered is not None:
 			self.tS.blit(self.rendered, (self.x, self.y))
+			return
 		else:
 			print("BLUD RENDER TS FIRST")
+			return
 
 class UIImage:
 	def __init__(self, targetSurface:pygame.Surface, imagePath:str, x:int=0, y:int=0, width:int=None, height:int=None):

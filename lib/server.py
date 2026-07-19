@@ -1,10 +1,11 @@
 import sys
 sys.path.insert(0, "/opt/pygui")
-from lib. baseuiapi import *
+from lib.baseuiapi import *
 import socket
 from pathlib import Path
 import os
 import json
+import pygame
 
 class SysServer:
     def __init__(self, pygame:pygame, targetSurface, screenw=800, screenh=600, serverAddr="/tmp/pygui.sock"):
@@ -35,6 +36,8 @@ class SysServer:
         self.compositor.setblocking(False)
         self.clientSocket = None
 
+        self.taskbar = Taskbar(self.tS)
+
     def drawWallpaper(self, color:tuple=(0, 128, 128)):
         self.tS.fill(color)
         imageMask = self.pygame.mask.from_surface(self.pythOSlogo).to_surface(setcolor=(0,0,0, 255), unsetcolor=(0,0,0,0))
@@ -54,12 +57,6 @@ class SysServer:
             if self.tempFade < 0:
                 self.tempFade = 0
                 del self.fadeOverlay
-    
-    @staticmethod
-    def obtainScreenSize():
-        displayInfo = self.pygame.display.Info()
-        self.w, self.h = displayInfo.current_w, displayInfo.current_h
-        return self.w, self.h
     
     def acceptMessage(self):
         if self.clientSocket is None:
@@ -102,7 +99,6 @@ class SysServer:
         except json.JSONDecodeError:
             return None
     def initWindow(self, title="window", x=None, y=None, w=400, h=300, tbHeight=25, tbColor=[0,0,128],  close=True, fontPath="/opt/pygui/assets/defaultFont.ttf"):
-        print("init window")
         currentID = self.nextID
         window = WindowAPI(self, self.tS, x, y, w, h, title, close, fontPath, tbHeight, tbColor)
         window.ID = currentID
@@ -112,25 +108,44 @@ class SysServer:
         return currentID
     
     def destroyWindow(self, windowID):
-        print(f"{type(windowID)}, {windowID}")
         if windowID in self.windows:
             self.windows.pop(windowID)
             return windowID, "Success"
         return windowID, "Failed"
 
+    def UIText(self, windowID, text, x=None, y=None, fontSize=20, fontPath="/opt/pygui/assets/defaultFont.ttf", fontColor:list=[0,0,0]):
+        if windowID not in self.windows:
+            return "Invalid window ID", "Failed"
+        content = self.windows[windowID].content
+        try:
+            UIText(text, content, x, y, fontPath, fontSize, fontColor, renderAllAtOnce=True)
+            return "Successfully rendered", "Success"
+        except Exception as e:
+            return "Failed to render", "Failed"
+    
+def obtainScreenSize():
+    displayInfo = pygame.display.Info()
+    w, h = displayInfo.current_w, displayInfo.current_h
+    return w, h
+
 class Taskbar:
-    def __init__(self, targetSurface:pygame.Surface, color=[212, 208, 200], height=30):
+    def __init__(self, targetSurface:pygame.Surface, color=[212, 208, 200], height=50):
         self.tS = targetSurface
         self.bgColor = color
         self.height = height
 
-        self.screenw, _ = SysServer.obtainScreenSize()
-        self.h = height if height else 30
+        self.screenw, self.screenh = obtainScreenSize()
+        self.w = self.screenw
+        self.h = height if height else 50
 
-        self.tbSurface = pygame.Surface((self.screenw, self.h))
+        self.tbSurface = pygame.Surface((self.w, self.h))
         self.tbSurface.fill(self.bgColor)
 
         self.buttons = []
 
+        self.x = 0
+        self.y = self.screenh - self.h
+
     def drawTaskbar(self):
-        
+        self.tS.blit(self.tbSurface, (self.x, self.y))
+        drawShadowsonSurface(self.tbSurface, self.w, self.h)
