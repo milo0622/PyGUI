@@ -123,6 +123,25 @@ class SysServer:
         except Exception as e:
             return "Failed to render", "Failed"
     
+    def UIButton(self, windowID, text, x=None, y=None, w=0, h=0, fontPath="/opt/pygui/assets/defaultFont.ttf", fontSize=20, fontColor=[0,0,0], widgetID=None, eventSocketPath=None):
+        if windowID not in self.windows:
+            return "Invalid window ID", "Failed"
+        content = self.windows[windowID].content
+        def clickCallback():
+            self.sendEventToApp(eventSocketPath, widgetID)
+        try:
+            UIButton(w=w, h=h, x=x, y=y, callback=clickCallback, renderText=text, renderImagePath="", color=[0,0,0], fontSize=fontSize, fontColor=fontColor, renderAllAtOnce=True, targetDest=self.windows[windowID])
+        except Exception as e:
+            print(e)
+    def sendEventToApp(self, windowID:int, widgetID:int):
+        payload = {
+            "action":"click", 
+            "widgetID":widgetID
+        }
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.connect(f"/tmp/pyguiEvents-{windowID}.sock")
+        s.sendall(json.dumps(payload).encode("utf-8"))
+
 def obtainScreenSize():
     displayInfo = pygame.display.Info()
     w, h = displayInfo.current_w, displayInfo.current_h

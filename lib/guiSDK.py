@@ -5,6 +5,10 @@ sys.path.insert(0, "/opt/pygui")
 from lib.baseuiapi import *
 import json
 import pygame
+import inspect
+from pathlib import *
+import os
+import threading
 
 class App:
     def __init__(self, title:str="App", x:int=None, y:int=None, w:int=400, h:int=300, close:bool=True, tbHeight:int=25, tbColor:list=[0,0,128]):
@@ -28,6 +32,11 @@ class App:
 
         self.window = None
 
+        self.widgets = {}
+        self.nextWID = 0
+
+        self.listenPath = None
+
     def obtainScreenSize(self) -> tuple | None:
         result, status = self.sendRequest(action="obtainScreenSize", useSelf=False, useClass=None)
         if status == "Success":
@@ -40,6 +49,7 @@ class App:
             if result.get("result", None) is not None:
                 if isinstance(result.get("result", None), int):
                     self.ID = result.get("result")
+                    threading.Thread(target=self.openListener, daemon=True).start()
                     return self.ID
                 else:
                     return f"Failed to initialize window: {result.get("status", None)}", 2
@@ -55,11 +65,46 @@ class App:
         self.sendRequest(action="destroyWindow", useSelf=True, useClass="sysServer", windowID=windowID)    
 
     def Text(self, text, x=0, y=0, fontSize=20, fontPath="/opt/pygui/assets/defaultFont.ttf", fontColor=[0,0,0]):
-        print(self.ID)
         if not fontPath:
             fontPath = "/opt/pygui/assets/defaultFont.ttf"
         result = self.sendRequest("UIText", useSelf=True, useClass="sysServer", text=text, x=x, y=y, fontSize=fontSize, fontPath=fontPath, fontColor=fontColor, windowID=self.ID)
-        return result
+        if result[1] == "Success":
+            payload = {
+                "text":text,
+                "x":x,
+                "y":y,
+                "fontSize":fontSize, 
+                "fontColor":fontColor,
+                "fontPath":fontPath
+            }
+
+            self.widgets[self.nextWID] = payload
+            self.nextWID += 1
+        return payload
+
+    def Button(self, text=None, x=0, y=0, w:str|int=0, h:str|int=0, fontSize=20, fontPath="/opt/pygui/assets/defaultFont.ttf", fontColor=[0,0,0], callback=None, *args, **kwargs):
+        if not fontPath:
+            fontPath = inspect.signature(fontPath)
+        result = self.sendRequest("UIButton", useSelf=True, useClass="sysServer", text=text, x=x, y=y, w=w, h=h, fontPath=fontPath, fontSize=fontSize, fontColor=fontColor, windowID=self.ID, widgetID=self.nextWID, eventSocketPath=self.listenPath)
+        if result == "Success":
+            payload = {
+                "text":text, 
+                "x":x,
+                "y":y,
+                "fontSize":fontSize, 
+                "fontColor":fontColor,
+                "fontPath":fontPath,
+                "w": w,
+                "h":h,
+                "callback":callback,
+                "args":args,
+                "kwargs":kwargs
+            }
+
+            self.widgets[self.nextWID] = payload
+            self.nextWID += 1
+
+        return
 
     def sendRequest(self, action:str | list, useSelf=True, useClass:str | None="sysServer", *args, **kwargs):
         payload = {
@@ -87,3 +132,31 @@ class App:
             return None, f"Failed: {e}"
         finally:
             txSocket.close()
+
+    def openListener(self):
+        self.listenPath = f"/tmp/pyguiEvents-{self.ID}.sock"
+        if Path(self.listenPath).exists():
+            os.unlink(self.listenPath)
+
+        self.server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.server.bind(self.listenPath)
+        self.server.listen(1)
+        while True:
+            conn, _ = self.server.accept()
+            data = conn.recv(1024)
+            conn.close()
+            if not data:
+                continue
+            else:
+                data = json.loads(data)
+            action = data.get("action", None)
+            if action:
+                args = data.get("args", [])
+                kwargs = data.get("kwargs", {})
+                run = getattr(self, action)
+                try:
+                    run(*args, **kwargs)
+                    continue
+                except Exception as e:
+                    print(f"Error executing {action}: {e}")
+                    continue

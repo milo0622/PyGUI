@@ -1,0 +1,9 @@
+"filename", "language", "Markdown", "Python", "comment", "blank", "total"
+"/home/miloc/pygui/README.md", "Markdown", 11, 0, 0, 3, 14
+"/home/miloc/pygui/apps/About PythOS.py", "Python", 0, 12, 0, 6, 18
+"/home/miloc/pygui/lib/baseuiapi.py", "Python", 0, 229, 0, 54, 283
+"/home/miloc/pygui/lib/guiSDK.py", "Python", 0, 104, 0, 23, 127
+"/home/miloc/pygui/lib/initialization.py", "Python", 0, 27, 0, 14, 41
+"/home/miloc/pygui/lib/server.py", "Python", 0, 130, 0, 29, 159
+"/home/miloc/pygui/pygui.py", "Python", 0, 113, 0, 14, 127
+"Total", "-", 11, 615, 0, 143, 769

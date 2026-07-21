@@ -43,7 +43,7 @@ class WindowAPI:
 		closeBtnW = closeBtnH + 2
 		closeBtnY = (self.tbHeight - closeBtnH) // 2 + self.tbStartY
 		closeBtnX = (self.w - self.tbStartX - closeBtnW - closeBtnY)
-		self.closeBtn = UIButton(closeBtnW, closeBtnH, closeBtnX, closeBtnY, callback=self.closeWindow, renderText=("x", 24))
+		self.closeBtn = UIButton(closeBtnW, closeBtnH, closeBtnX, closeBtnY, callback=self.closeWindow, renderText="x", fontSize=24)
 
 		self.sysServer = sysServer
 		self.isDragging = False
@@ -148,7 +148,7 @@ def drawShadowsonRect(parentSurface, targetRect:pygame.Rect, lightMargin=[255, 2
 		pygame.draw.line(parentSurface, grayMargin, (topleft[0] + 1, topleft[1] + 1), (topright[0] - 1, topright[1] + 1))
 
 class UIButton:
-	def __init__(self, w, h, x, y, callback, renderText=("", 24), renderImagePath="", color:pygame.Color=[212, 208, 200], shadows=True):
+	def __init__(self, w, h, x, y, callback, targetDest=None, renderText="", renderImagePath="", color:pygame.Color=[212, 208, 200], shadows=True, fontSize=20, fontColor=[0,0,0], renderAllAtOnce=True):
 		self.w = w
 		self.h = h
 		self.x = x
@@ -157,8 +157,8 @@ class UIButton:
 		self.callback = callback
 		self.isClicked = False
 
-		self.font = pygame.font.Font(None, renderText[1])
-		self.text = renderText[0]
+		self.font = pygame.font.Font(None, fontSize)
+		self.text = renderText
 
 		self.color = color
 
@@ -172,14 +172,16 @@ class UIButton:
 		self.isClicked = False
 
 		self.shadows = shadows
+		self.fontColor = fontColor
+		self.targetDest = targetDest
+
+		if renderAllAtOnce and targetDest is not None:
+			self.draw(targetDest=self.targetDest)
 
 	def draw(self, targetDest:WindowAPI | SysServer):
 		self.targetDest = targetDest
 		self.tS = self.targetDest.window if isinstance(self.targetDest, WindowAPI) else self.targetDest.tS
 
-		if not self.appended:
-			targetDest.buttons.append(self)
-			self.appended = True
 		
 		self.buttonObject = pygame.Rect((self.x, self.y, self.w, self.h))
 		pygame.draw.rect(self.tS, self.color, self.buttonObject)
@@ -187,7 +189,7 @@ class UIButton:
 		additionalOffset = 1 if self.isClicked else 0
 
 		if self.text is not None:
-			self.textObject = self.font.render(self.text, True, [0,0,0])
+			self.textObject = self.font.render(self.text, True, self.fontColor)
 		if self.imageObject is not None:
 			imageX = (self.w - self.imageObject.get_width()) // 2 + self.x + additionalOffset
 			imageY = (self.h - int(self.imageObject.get_height())) // 2 + self.y + additionalOffset
@@ -199,6 +201,10 @@ class UIButton:
 
 		if self.shadows:
 			drawShadowsonRect(self.tS, self.buttonObject, clicked=self.isClicked)
+
+		if not self.appended:
+			targetDest.buttons.append(self)
+			self.appended = True
 
 		return self.buttonObject, self.imageObject, self.textObject
 
@@ -219,8 +225,7 @@ class UIButton:
 			absX, absY = windowX + self.x, windowY + self.y
 			buttonRect = pygame.Rect(absX, absY, self.w, self.h)
 			if buttonRect.collidepoint(mousePos):
-				if self.callback:
-					self.callback()
+				self.click()
 		return False
 
 	def click(self, args:tuple):
@@ -246,13 +251,13 @@ class UIText:
 		self.width = self.rendered.get_width()
 		if renderAllAtOnce:
 			self.blitText()
+
+		self.appended = False
 		
 	def blitText(self, x=None, y=None):
 		"""x or y coordinates are optional if already defined when initializing UIText object"""
 		self.x = x if x else self.x
 		self.y = y if y else self.y
-		if x is None or y is None:
-			print("Coordinates required")
 		if hasattr(self, 'rendered') and self.rendered is not None:
 			self.tS.blit(self.rendered, (self.x, self.y))
 			return

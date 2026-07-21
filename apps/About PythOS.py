@@ -8,10 +8,7 @@ def main():
     app.initWindow()
 
     app.Text("About PythOS", x=10, y=10, fontSize=35)
-
-    time.sleep(5)
-
-    app.destroyWindow()
+    app.Button(text="Hi", x=10,y=20, w=10, h=5, fontSize=10, callback=None)
 
 if __name__ == "__main__":
     main()
