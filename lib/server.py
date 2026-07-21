@@ -124,19 +124,25 @@ class SysServer:
             return "Failed to render", "Failed"
     
     def UIButton(self, windowID, text, x=None, y=None, w=0, h=0, fontPath="/opt/pygui/assets/defaultFont.ttf", fontSize=20, fontColor=[0,0,0], widgetID=None, eventSocketPath=None):
+        if widgetID is None:
+            return "Please provide widget ID", "Failed"
         if windowID not in self.windows:
             return "Invalid window ID", "Failed"
         content = self.windows[windowID].content
         def clickCallback():
             self.sendEventToApp(eventSocketPath, widgetID)
         try:
-            UIButton(w=w, h=h, x=x, y=y, callback=clickCallback, renderText=text, renderImagePath="", color=[0,0,0], fontSize=fontSize, fontColor=fontColor, renderAllAtOnce=True, targetDest=self.windows[windowID])
+            UIButton(w=w, h=h, x=x, y=y, callback=clickCallback, renderText=text, renderImagePath="", fontSize=fontSize, fontColor=fontColor, renderAllAtOnce=True, targetDest=self.windows[windowID])
+            for button in self.windows[windowID].buttons:
+                print(button)
         except Exception as e:
             print(e)
     def sendEventToApp(self, windowID:int, widgetID:int):
         payload = {
-            "action":"click", 
-            "widgetID":widgetID
+            "action":"click",
+            "args": [
+                widgetID
+            ]
         }
         s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         s.connect(f"/tmp/pyguiEvents-{windowID}.sock")

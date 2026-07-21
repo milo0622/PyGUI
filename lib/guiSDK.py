@@ -15,6 +15,9 @@ class App:
         self.socketAddr = "/tmp/pygui.sock"
         print(self.socketAddr)
 
+        if not pygame.font.get_init():
+            pygame.font.init()
+
         self.w, self.h = w, h
         self.title = title
 
@@ -82,11 +85,24 @@ class App:
             self.nextWID += 1
         return payload
 
-    def Button(self, text=None, x=0, y=0, w:str|int=0, h:str|int=0, fontSize=20, fontPath="/opt/pygui/assets/defaultFont.ttf", fontColor=[0,0,0], callback=None, *args, **kwargs):
+    def Button(self, text:str=None, x=0, y=0, autoResize:bool=False, padding:int=0, w:int=None, h:int=None, fontSize=20, fontPath="/opt/pygui/assets/defaultFont.ttf", fontColor=[0,0,0], callback=None, *args, **kwargs):
+        """Creates button
+w and h parameters will be ignored when autoResize is set to True
+        """
+        if text is None:
+            text = ""
+        if autoResize:
+            w, h = self.calcTextSize(text=text, fontSize=fontSize, fontPath=fontPath)
+        elif not autoResize and (w is None or h is None):
+            print("Please provide width and height.")
+            return
+        if padding is not None:
+            w += padding * 2
+            h += padding * 2
         if not fontPath:
-            fontPath = inspect.signature(fontPath)
+            fontPath = "/opt/pygui/assets/defaultFont.ttf"
         result = self.sendRequest("UIButton", useSelf=True, useClass="sysServer", text=text, x=x, y=y, w=w, h=h, fontPath=fontPath, fontSize=fontSize, fontColor=fontColor, windowID=self.ID, widgetID=self.nextWID, eventSocketPath=self.listenPath)
-        if result == "Success":
+        if result[1] == "Success":
             payload = {
                 "text":text, 
                 "x":x,
@@ -103,8 +119,11 @@ class App:
 
             self.widgets[self.nextWID] = payload
             self.nextWID += 1
-
         return
+
+    def calcTextSize(self, text="", fontSize=20, fontPath="/opt/pygui/assets/defaultFont.ttf"):
+        textObj = pygame.font.Font(fontPath, fontSize)
+        return textObj.size(text)
 
     def sendRequest(self, action:str | list, useSelf=True, useClass:str | None="sysServer", *args, **kwargs):
         payload = {
@@ -133,8 +152,21 @@ class App:
         finally:
             txSocket.close()
 
+    def click(self, widgetID=None):
+        if widgetID is None:
+            print("Please provide widget ID.")
+            return
+        run = self.widgets.get(widgetID, None)
+        if run is not None:
+            run.get(callback)
+        else:
+            return
+
+        run()
+
     def openListener(self):
         self.listenPath = f"/tmp/pyguiEvents-{self.ID}.sock"
+        print(f"Port open: {self.listenPath}")
         if Path(self.listenPath).exists():
             os.unlink(self.listenPath)
 
@@ -144,13 +176,15 @@ class App:
         while True:
             conn, _ = self.server.accept()
             data = conn.recv(1024)
+            print(data)
             conn.close()
             if not data:
                 continue
             else:
                 data = json.loads(data)
             action = data.get("action", None)
-            if action:
+            if action is not None:
+                print(action)
                 args = data.get("args", [])
                 kwargs = data.get("kwargs", {})
                 run = getattr(self, action)

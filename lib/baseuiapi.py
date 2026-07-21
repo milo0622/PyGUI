@@ -64,7 +64,7 @@ class WindowAPI:
 		self.titleObject.blitText(titleY, titleY)
 
 		if self.close and self.tbHeight > 0:
-			self.closeBtn.draw(self)
+			self.closeBtn.draw(self, tbButtons=True)
 		self.window.blit(self.content, (2, self.tbHeight + 4))
 
 		drawShadowsonSurface(self.window, self.w, self.h)
@@ -77,7 +77,6 @@ class WindowAPI:
 		print(f"Window closed: {self.title}")
 
 	def handleMouseDown(self, mousePos:tuple):
-		print("handle: mouse down")
 		windowRect = pygame.Rect(self.x, self.y, self.w, self.h)
 		if windowRect.collidepoint(mousePos):
 			if self.ID != next(reversed(self.sysServer.windows)):
@@ -99,7 +98,6 @@ class WindowAPI:
 		return False
 	
 	def handleMouseUp(self, mousePos:tuple):
-		print("handle: mouse up")
 		if self.isDragging:
 			self.isDragging = False
 		for button in self.buttons:
@@ -178,10 +176,11 @@ class UIButton:
 		if renderAllAtOnce and targetDest is not None:
 			self.draw(targetDest=self.targetDest)
 
-	def draw(self, targetDest:WindowAPI | SysServer):
+	def draw(self, targetDest:WindowAPI | SysServer, tbButtons=False):
 		self.targetDest = targetDest
-		self.tS = self.targetDest.window if isinstance(self.targetDest, WindowAPI) else self.targetDest.tS
-
+		self.tS = self.targetDest.content if isinstance(self.targetDest, WindowAPI) else self.targetDest.tS
+		if tbButtons:
+			self.tS = self.targetDest.window
 		
 		self.buttonObject = pygame.Rect((self.x, self.y, self.w, self.h))
 		pygame.draw.rect(self.tS, self.color, self.buttonObject)
@@ -209,22 +208,22 @@ class UIButton:
 		return self.buttonObject, self.imageObject, self.textObject
 
 	def checkClick(self, mousePos, windowX, windowY):
-		print("check: click")
 		absX, absY = windowX + self.x, windowY + self.y
 		buttonRect = pygame.Rect(absX, absY, self.w, self.h)
 		if buttonRect.collidepoint(mousePos):
+			print("check: click")
 			self.isClicked = True
 			return True
 		self.isClicked = False
 		return False
 
 	def checkRelease(self, mousePos, windowX, windowY):
-		print("check: release")
 		if self.isClicked:
 			self.isClicked = False
 			absX, absY = windowX + self.x, windowY + self.y
 			buttonRect = pygame.Rect(absX, absY, self.w, self.h)
 			if buttonRect.collidepoint(mousePos):
+				print("check: release")
 				self.click()
 		return False
 
